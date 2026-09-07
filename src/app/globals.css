@@ -1,0 +1,350 @@
+@import "tailwindcss";
+
+/*
+ * PEACH PAD — pixel launchpad, peach edition.
+ *
+ * Same bones as the strawberry original: one pixel typeface for everything,
+ * 4px ink borders with a hard 4px drop, no rounding anywhere, and two
+ * shades of cream for the ground. The whole colour change is the accent:
+ * peach orange where the strawberry was red, a deeper burnt orange for the
+ * button's lower bevel, and a soft peach tint for hovers and inputs where
+ * the original used pink. Nothing else moved.
+ */
+:root {
+  --cream: #fff8f2;
+  --cream-deep: #ffe8d4;
+  --peach: #f26b1d;
+  --deep-peach: #a8420b;
+  --peach-soft: #ffcfa3;
+  --ink: #1c1410;
+  --pixel: 4px;
+  --pixel-shadow: #1c1410;
+
+  /* Bevel + hover tints derived from the accent. */
+  --peach-bevel-hi: #ffa457;
+  --soft-bevel-lo: #efbf93;
+  --input-inset: #eed7c2;
+  --grey-bevel-lo: #d8d0ce;
+}
+
+@theme inline {
+  --color-cream: var(--cream);
+  --color-cream-deep: var(--cream-deep);
+  --color-peach: var(--peach);
+  --color-deep-peach: var(--deep-peach);
+  --color-peach-soft: var(--peach-soft);
+  --color-ink: var(--ink);
+  --color-emerald-700: #007956;
+
+  /* Jersey 15 is the body face too — `font-sans` and `font-display` are
+     the same family; `.ui-text` is the one escape hatch to a system sans. */
+  --font-sans: var(--font-pixel), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-pixel), ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--cream);
+    color: var(--ink);
+    font-family: var(--font-pixel), ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: unset;
+    image-rendering: pixelated;
+  }
+
+  ::selection {
+    background: var(--peach);
+    color: #fff;
+  }
+}
+
+@layer components {
+  .font-display,
+  .font-pixel {
+    font-family: var(--font-pixel), ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    -webkit-font-smoothing: none;
+    image-rendering: pixelated;
+    font-weight: 400;
+  }
+
+  /* System sans for addresses, tiny labels and inputs — the pixel face has
+     no lowercase worth reading at 10px. */
+  .ui-text {
+    letter-spacing: normal;
+    text-transform: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    image-rendering: auto;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-weight: 600;
+  }
+
+  .pixel-panel {
+    border: var(--pixel) solid var(--ink);
+    box-shadow: var(--pixel) var(--pixel) 0 0 var(--pixel-shadow);
+    image-rendering: pixelated;
+    background: #fff;
+    border-radius: 0;
+  }
+
+  .pixel-panel-soft {
+    background: var(--peach-soft);
+    border: var(--pixel) solid var(--ink);
+    box-shadow: var(--pixel) var(--pixel) 0 0 var(--pixel-shadow);
+    border-radius: 0;
+  }
+
+  .pixel-panel-peach {
+    background: var(--peach);
+    border: var(--pixel) solid var(--ink);
+    box-shadow: var(--pixel) var(--pixel) 0 0 var(--deep-peach);
+    border-radius: 0;
+  }
+
+  .btn-primary {
+    border: var(--pixel) solid var(--ink);
+    background: var(--peach);
+    font-family: var(--font-pixel), ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #fff;
+    box-shadow:
+      inset calc(var(--pixel) * -1) calc(var(--pixel) * -1) 0 0 var(--deep-peach),
+      inset var(--pixel) var(--pixel) 0 0 var(--peach-bevel-hi),
+      var(--pixel) var(--pixel) 0 0 var(--ink);
+    -webkit-font-smoothing: none;
+    image-rendering: pixelated;
+    border-radius: 0;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    font-size: 1.05rem;
+    font-weight: 400;
+    transition:
+      transform 80ms steps(2, end),
+      box-shadow 80ms steps(2, end);
+    display: inline-flex;
+  }
+  .btn-primary:hover {
+    box-shadow:
+      inset calc(var(--pixel) * -1) calc(var(--pixel) * -1) 0 0 var(--deep-peach),
+      inset var(--pixel) var(--pixel) 0 0 var(--peach-bevel-hi),
+      2px 2px 0 0 var(--ink);
+    filter: none;
+    transform: translate(2px, 2px);
+  }
+  .btn-primary:active {
+    transform: translate(var(--pixel), var(--pixel));
+    box-shadow:
+      inset 0 0 #0000,
+      inset 0 0 #0000,
+      0 0 #0000;
+  }
+  .btn-primary:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+    transform: none;
+  }
+
+  .btn-secondary {
+    border: var(--pixel) solid var(--ink);
+    font-family: var(--font-pixel), ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink);
+    box-shadow:
+      inset calc(var(--pixel) * -1) calc(var(--pixel) * -1) 0 0 var(--grey-bevel-lo),
+      inset var(--pixel) var(--pixel) 0 0 #fff,
+      var(--pixel) var(--pixel) 0 0 var(--ink);
+    -webkit-font-smoothing: none;
+    image-rendering: pixelated;
+    background: #fff;
+    border-radius: 0;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    font-size: 1.05rem;
+    font-weight: 400;
+    transition:
+      transform 80ms steps(2, end),
+      box-shadow 80ms steps(2, end),
+      background 80ms steps(2, end);
+    display: inline-flex;
+  }
+  .btn-secondary:hover {
+    background: var(--peach-soft);
+    box-shadow:
+      inset calc(var(--pixel) * -1) calc(var(--pixel) * -1) 0 0 var(--soft-bevel-lo),
+      inset var(--pixel) var(--pixel) 0 0 #fff,
+      2px 2px 0 0 var(--ink);
+    transform: translate(2px, 2px);
+  }
+  .btn-secondary:active {
+    transform: translate(var(--pixel), var(--pixel));
+    box-shadow:
+      inset 0 0 #0000,
+      inset 0 0 #0000,
+      0 0 #0000;
+  }
+  .btn-secondary:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+    transform: none;
+  }
+
+  .pixel-icon-btn {
+    border: var(--pixel) solid var(--ink);
+    width: 2.75rem;
+    height: 2.75rem;
+    color: var(--ink);
+    box-shadow: var(--pixel) var(--pixel) 0 0 var(--ink);
+    image-rendering: pixelated;
+    background: #fff;
+    border-radius: 0;
+    justify-content: center;
+    align-items: center;
+    transition:
+      transform 80ms steps(2, end),
+      box-shadow 80ms steps(2, end);
+    display: inline-flex;
+  }
+  .pixel-icon-btn:hover {
+    background: var(--peach-soft);
+    box-shadow: 2px 2px 0 0 var(--ink);
+    transform: translate(2px, 2px);
+  }
+
+  .pixel-badge {
+    border: var(--pixel) solid var(--ink);
+    font-family: var(--font-pixel), ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--peach);
+    box-shadow: var(--pixel) var(--pixel) 0 0 var(--ink);
+    -webkit-font-smoothing: none;
+    background: #fff;
+    border-radius: 0;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 400;
+    display: inline-flex;
+  }
+
+  .pixel-input {
+    border: var(--pixel) solid var(--ink);
+    background: var(--cream-deep);
+    letter-spacing: normal;
+    text-transform: none;
+    width: 100%;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    image-rendering: auto;
+    border-radius: 0;
+    outline: none;
+    padding: 0.75rem 0.9rem;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 0.95rem;
+    font-weight: 500;
+    display: block;
+    box-shadow: inset 2px 2px var(--input-inset);
+  }
+  .pixel-input::placeholder {
+    color: color-mix(in srgb, var(--ink) 35%, transparent);
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 400;
+  }
+  .pixel-input:focus {
+    box-shadow:
+      inset 2px 2px 0 0 var(--input-inset),
+      0 0 0 2px var(--peach-soft);
+    background: #fff;
+  }
+
+  .pixel-nav-link {
+    border: var(--pixel) solid transparent;
+    font-family: var(--font-pixel), ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink);
+    padding: 0.4rem 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 400;
+    transition:
+      background 80ms steps(2, end),
+      border-color 80ms steps(2, end);
+  }
+  .pixel-nav-link:hover {
+    border-color: var(--ink);
+    background: var(--peach-soft);
+  }
+
+  .pixel-dot {
+    background: var(--peach);
+    width: 8px;
+    height: 8px;
+    box-shadow: 8px 0 0 var(--peach);
+    image-rendering: pixelated;
+  }
+}
+
+/* The drifting peaches behind the hero. Two animations on one element: a
+   slow translate loop and a slower sway, both driven by per-peach custom
+   properties set inline. */
+@keyframes peach-float {
+  0%,
+  100% {
+    translate: 0;
+  }
+  50% {
+    translate: var(--peach-float-x, 6px) var(--peach-float-y, -12px);
+  }
+}
+
+@keyframes peach-sway {
+  0%,
+  100% {
+    rotate: none;
+  }
+  50% {
+    rotate: var(--peach-rotate-amp, 4deg);
+  }
+}
+
+.peach-float {
+  animation:
+    peach-float var(--peach-duration, 8s) var(--peach-delay, 0s) ease-in-out infinite,
+    peach-sway var(--peach-duration, 8s) var(--peach-delay, 0s) ease-in-out infinite;
+  backface-visibility: hidden;
+}
+
+.peach-float-paused .peach-float {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .peach-float {
+    animation: none;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  ::before,
+  ::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
