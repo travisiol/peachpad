@@ -19,7 +19,13 @@ const INK = "#1c1410";
  * reference (640×220, three dotted gridlines with right-aligned labels,
  * four clock ticks along the bottom) with a hover column per point.
  */
-export function MarketCapChart({ points }: { points: Point[] }) {
+export function MarketCapChart({
+  points,
+  format = formatUsdCompact,
+}: {
+  points: Point[];
+  format?: (v: number) => string;
+}) {
   const [active, setActive] = useState<number | null>(null);
 
   const values = points.map((p) => p.value);
@@ -40,6 +46,7 @@ export function MarketCapChart({ points }: { points: Point[] }) {
   );
 
   const hovered = active !== null ? points[active] : null;
+  const boxX = active !== null ? Math.min(Math.max(x(active) - 44, X0), X1 - 88) : 0;
 
   return (
     <svg
@@ -60,7 +67,7 @@ export function MarketCapChart({ points }: { points: Point[] }) {
         <g key={i}>
           <line x1={X0} x2={X1} y1={y(v)} y2={y(v)} stroke={INK} strokeOpacity="0.08" strokeDasharray="3 4" />
           <text x={632} y={y(v) - 4} textAnchor="end" className="fill-ink/40" style={{ fontSize: 10 }}>
-            {formatUsdCompact(v)}
+            {format(v)}
           </text>
         </g>
       ))}
@@ -73,25 +80,17 @@ export function MarketCapChart({ points }: { points: Point[] }) {
       ))}
 
       {points.map((_, i) => (
-        <rect
-          key={`h${i}`}
-          x={x(i) - 14}
-          y={0}
-          width={28}
-          height={H}
-          fill="transparent"
-          onMouseEnter={() => setActive(i)}
-        />
+        <rect key={`h${i}`} x={x(i) - 14} y={0} width={28} height={H} fill="transparent" onMouseEnter={() => setActive(i)} />
       ))}
 
-      {hovered ? (
+      {hovered && active !== null ? (
         <g pointerEvents="none">
-          <line x1={x(active!)} x2={x(active!)} y1={Y0} y2={Y1} stroke={INK} strokeOpacity="0.25" strokeDasharray="2 3" />
-          <rect x={Math.min(Math.max(x(active!) - 44, X0), X1 - 88)} y={Y0 + 6} width={88} height={30} fill="#fff" stroke={INK} strokeWidth="2" />
-          <text x={Math.min(Math.max(x(active!) - 44, X0), X1 - 88) + 44} y={Y0 + 19} textAnchor="middle" className="fill-ink" style={{ fontSize: 11, fontWeight: 600 }}>
-            {formatUsdCompact(hovered.value)}
+          <line x1={x(active)} x2={x(active)} y1={Y0} y2={Y1} stroke={INK} strokeOpacity="0.25" strokeDasharray="2 3" />
+          <rect x={boxX} y={Y0 + 6} width={88} height={30} fill="#fff" stroke={INK} strokeWidth="2" />
+          <text x={boxX + 44} y={Y0 + 19} textAnchor="middle" className="fill-ink" style={{ fontSize: 11, fontWeight: 600 }}>
+            {format(hovered.value)}
           </text>
-          <text x={Math.min(Math.max(x(active!) - 44, X0), X1 - 88) + 44} y={Y0 + 31} textAnchor="middle" className="fill-ink/50" style={{ fontSize: 9 }}>
+          <text x={boxX + 44} y={Y0 + 31} textAnchor="middle" className="fill-ink/50" style={{ fontSize: 9 }}>
             {formatClock(hovered.t)}
           </text>
         </g>

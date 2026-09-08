@@ -1,12 +1,17 @@
 /**
- * Shapes served by /api/launches and /api/pons/v2/<token>/*. They mirror
- * what the pad's indexer and the Pons V2 market API return, so the UI does
- * not care whether a response came from upstream or from the sample set.
+ * Shapes served by /api/launches and /api/pons/v2/<token>/*. Everything is
+ * read from Robinhood Chain — the router for the list and metadata, the
+ * Pons curve for the market, the fee escrow for creator fees.
  */
 
 export type LaunchMarket = {
-  priceUsd: number;
-  marketCapUsd: number;
+  /** ETH per token, from the curve's (virtual) reserves. */
+  priceEth: number;
+  /** Null when no ETH/USD quote is available. */
+  priceUsd: number | null;
+  marketCapEth: number;
+  marketCapUsd: number | null;
+  /** ETH actually raised on the curve so far. */
   pairedPrincipalEth: number;
   graduationProgressPct: number;
   graduated: boolean;
@@ -26,7 +31,6 @@ export type Launch = {
   /** `ipfs://<cid>` or an https URL. Empty when the launch has no image. */
   logo: string;
   description: string;
-  txHash: string;
   blockNumber: string;
   launchedAt: string;
   market: LaunchMarket;
@@ -34,47 +38,31 @@ export type Launch = {
 
 export type LaunchesResponse = {
   ok: boolean;
-  /** `"indexer"` when served from PEACHPAD_INDEXER_URL, `"sample"` otherwise. */
-  source: "indexer" | "sample";
   launches: Launch[];
 };
 
-export type QuoteAsset = {
-  address: string;
-  symbol: string;
-  name?: string;
-  decimals: number;
-  isNative: boolean;
-  assetClass?: string;
-};
-
 export type MarketSummary = {
-  version: "v2";
-  factory: string;
   token: string;
+  curve: string;
   deployer: string;
-  pool: string;
-  pairToken: string;
-  transactionHash: string;
-  blockNumber: number;
+  splitter: string;
+  launchBlock: number;
   launchedAt: string;
-  initialBuyWei: string;
+  developerBuy: string;
   name: string;
   symbol: string;
   logo: string;
   description: string;
-  priceUsd: number;
-  marketCapUsd: number;
-  liquidityUsd: number | null;
+  priceEth: number;
+  priceUsd: number | null;
+  marketCapEth: number;
+  marketCapUsd: number | null;
   graduated: boolean;
-  graduatedAt: string | null;
-  graduatedBlockNumber: number | null;
   graduationProgressPct: number;
   pairedPrincipalEth: number;
   graduationThresholdEth: number;
-  latestBuyAt: string | null;
-  latestBuyBlockNumber: number | null;
-  quoteAsset: QuoteAsset;
+  launchSupply: number;
+  ethUsd: number | null;
   venue: "curve" | "pool";
 };
 
@@ -83,21 +71,18 @@ export type FeeSummary = {
   feeEscrow: string;
   /** The splitter that receives creator fees for this token. */
   recipient: string;
-  quoteAsset: QuoteAsset;
-  /** Lifetime creator fees indexed by Pons, in wei. */
-  earnedForToken: string;
-  /** Fees sitting in escrow, claimable now, in wei. */
-  claimableForWallet: string;
-  sweepCount: number;
-  nothingToClaim: boolean;
+  /** Creator fees sitting in the Pons escrow for the splitter, in wei. */
+  inEscrowWei: string;
+  /** Everything a collect would pay out right now, in wei. */
+  pendingWei: string;
+  /** The creator's share of fees still on the curve, waiting for Pons' sweep, in wei. */
+  accruingWei: string;
 };
 
 export type SummaryResponse = {
   ok: boolean;
-  source: "pons" | "sample";
   market: MarketSummary;
-  fees: FeeSummary | null;
-  feesError: string | null;
+  fees: FeeSummary;
 };
 
 export type Trade = {
@@ -115,7 +100,6 @@ export type Trade = {
 };
 
 export type TradesResponse = {
-  source: "pons" | "sample";
   trades: Trade[];
 };
 
@@ -131,10 +115,11 @@ export type ChartPoint = {
 };
 
 export type ChartResponse = {
-  source: "pons" | "sample";
   token: string;
   range: ChartRange;
   intervalSeconds: number;
+  ethUsd: number | null;
+  launchSupply: number;
   points: ChartPoint[];
 };
 
@@ -145,9 +130,6 @@ export const CHART_RANGES: { key: ChartRange; label: string }[] = [
   { key: "1d", label: "1D" },
   { key: "all", label: "ALL" },
 ];
-
-/** Pons launches with a fixed 1e9 supply; market cap = price × supply. */
-export const TOKEN_SUPPLY = 1_000_000_000;
 
 /** Resolve `ipfs://` logos through the Pons gateway, pass https through. */
 export function logoUrl(logo: string | null | undefined): string | null {

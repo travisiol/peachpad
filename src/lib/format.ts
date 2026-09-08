@@ -31,6 +31,24 @@ export function formatEth(value: number | null | undefined, digits = 2): string 
   return `${value.toFixed(digits)} ETH`;
 }
 
+/** An ETH amount that may be tiny (a per-token price) or large (a market cap). */
+export function formatEthAuto(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return "—";
+  if (value === 0) return "0 ETH";
+  if (value < 0.001) return `${value.toExponential(1)} ETH`;
+  if (value < 1) return `${value.toFixed(4)} ETH`;
+  return `${value.toFixed(2)} ETH`;
+}
+
+/** USD when a quote is available, otherwise the ETH figure. */
+export function formatCap(usd: number | null | undefined, eth: number): string {
+  return usd == null ? formatEthAuto(eth) : formatUsdCompact(usd);
+}
+
+export function formatPrice(usd: number | null | undefined, eth: number): string {
+  return usd == null ? formatEthAuto(eth) : formatPriceUsd(usd);
+}
+
 /** Wei → ETH string with `digits` decimals (bigint-safe, no float in the middle). */
 export function formatWei(wei: string | bigint, digits = 5): string {
   const v = typeof wei === "bigint" ? wei : BigInt(wei || "0");

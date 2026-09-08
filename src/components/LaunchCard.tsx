@@ -1,12 +1,6 @@
 import Link from "next/link";
 import type { Launch } from "@/lib/pons";
-import {
-  formatEth,
-  formatGraduation,
-  formatPriceUsd,
-  formatUsdCompact,
-  shortAddress,
-} from "@/lib/format";
+import { formatCap, formatEth, formatGraduation, formatPrice, shortAddress } from "@/lib/format";
 import { TokenLogo } from "@/components/TokenLogo";
 import { CopyButton } from "@/components/CopyButton";
 
@@ -35,8 +29,8 @@ export function LaunchCard({ launch }: { launch: Launch }) {
         </div>
       </div>
       <div className="mt-3 grid grid-cols-4 gap-1.5 border-t-2 border-ink/10 pt-2.5 text-left">
-        <Stat label="MC" value={formatUsdCompact(m.marketCapUsd)} />
-        <Stat label="Price" value={formatPriceUsd(m.priceUsd)} />
+        <Stat label="MC" value={formatCap(m.marketCapUsd, m.marketCapEth)} />
+        <Stat label="Price" value={formatPrice(m.priceUsd, m.priceEth)} />
         <Stat label="Curve" value={formatEth(m.pairedPrincipalEth)} />
         <Stat label="Grad" value={formatGraduation(m.graduationProgressPct, m.graduated)} />
       </div>

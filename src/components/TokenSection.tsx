@@ -5,11 +5,7 @@ import { Reveal } from "@/components/Reveal";
 import { PeachMark } from "@/components/PeachMark";
 import { CopyButton } from "@/components/CopyButton";
 
-/**
- * The pad's own token. With NEXT_PUBLIC_PEACH_TOKEN unset the address box
- * says so instead of showing a placeholder — a copyable fake CA is the one
- * thing a launchpad must never render.
- */
+/** The pad's own token. The CA reads TBA until NEXT_PUBLIC_PEACH_TOKEN is set. */
 export function TokenSection() {
   const address = PEACH_TOKEN_ADDRESS;
   return (
@@ -32,38 +28,24 @@ export function TokenSection() {
 
           <div className="mt-8 text-left">
             <p className="mb-2 font-display text-xs text-ink/50">Contract Address (CA)</p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
+              <div className="flex-1 overflow-x-auto border-4 border-ink bg-cream-deep px-3 py-3 font-display text-xs text-ink/70 sm:text-sm">
+                <code className="whitespace-nowrap">{address ?? "TBA"}</code>
+              </div>
+              {address ? (
+                <CopyButton value={address} className="shrink-0 !px-4 !py-3 !text-xs" />
+              ) : null}
+            </div>
             {address ? (
-              <>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
-                  <div className="flex-1 overflow-x-auto border-4 border-ink bg-cream-deep px-3 py-3 font-display text-xs text-ink/70 sm:text-sm">
-                    <code className="whitespace-nowrap">{address}</code>
-                  </div>
-                  <CopyButton value={address} className="shrink-0 !px-4 !py-3 !text-xs" />
-                </div>
-                <a
-                  href={explorer.address(address)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 inline-block font-display text-xs text-peach underline-offset-2 hover:underline"
-                >
-                  View on explorer
-                </a>
-              </>
-            ) : (
-              <>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
-                  <div className="flex-1 border-4 border-dashed border-ink/30 bg-cream-deep px-3 py-3 font-display text-xs text-ink/50 sm:text-sm">
-                    Not deployed yet — no address to verify
-                  </div>
-                  <CopyButton value="" disabled className="shrink-0 !px-4 !py-3 !text-xs" />
-                </div>
-                <p className="ui-text mt-3 text-[11px] text-ink/45">
-                  The CA appears here the moment{" "}
-                  <code className="font-mono">NEXT_PUBLIC_PEACH_TOKEN</code> is set. Until then,
-                  any {site.ticker} contract you see elsewhere is not ours.
-                </p>
-              </>
-            )}
+              <a
+                href={explorer.address(address)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-block font-display text-xs text-peach underline-offset-2 hover:underline"
+              >
+                View on explorer
+              </a>
+            ) : null}
           </div>
         </Reveal>
       </div>

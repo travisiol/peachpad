@@ -6,7 +6,6 @@ import type { LaunchesResponse } from "@/lib/pons";
 import { site } from "@/lib/site";
 import { Reveal } from "@/components/Reveal";
 import { LaunchCard } from "@/components/LaunchCard";
-import { SampleNote } from "@/components/SampleNote";
 
 type State =
   | { status: "loading" }
@@ -18,22 +17,24 @@ export function Launches() {
 
   useEffect(() => {
     let cancelled = false;
-    // Trailing slash: the app serves every route that way, and a bare
-    // path would cost a 308 on each poll.
-    fetch("/api/launches/?limit=24")
-      .then(async (r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return (await r.json()) as LaunchesResponse;
-      })
-      .then((data) => {
-        if (!cancelled) setState({ status: "ready", data });
-      })
-      .catch((e: unknown) => {
-        if (!cancelled)
-          setState({ status: "error", message: e instanceof Error ? e.message : "failed" });
-      });
+    const load = () =>
+      fetch("/api/launches/?limit=24")
+        .then(async (r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return (await r.json()) as LaunchesResponse;
+        })
+        .then((data) => {
+          if (!cancelled) setState({ status: "ready", data });
+        })
+        .catch((e: unknown) => {
+          if (!cancelled)
+            setState({ status: "error", message: e instanceof Error ? e.message : "failed" });
+        });
+    load();
+    const id = setInterval(load, 30_000);
     return () => {
       cancelled = true;
+      clearInterval(id);
     };
   }, []);
 
@@ -63,27 +64,20 @@ export function Launches() {
             </div>
           ) : state.status === "error" ? (
             <p className="mx-auto w-fit border-4 border-ink bg-white px-4 py-3 text-sm text-ink/60">
-              Could not load launches ({state.message}).
+              Could not load launches right now.
             </p>
           ) : state.data.launches.length === 0 ? (
-            <p className="mx-auto w-fit border-4 border-ink bg-white px-4 py-3 text-sm text-ink/60">
+            <p className="mx-auto w-fit border-4 border-ink bg-white px-4 py-3 font-display text-sm text-ink/60">
               Nothing launched yet. Yours could be first.
             </p>
           ) : (
-            <>
-              {state.data.source === "sample" ? (
-                <div className="mb-4 flex justify-center">
-                  <SampleNote what="Sample launches" />
-                </div>
-              ) : null}
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {state.data.launches.map((l, i) => (
-                  <Reveal key={l.token} delay={Math.min(i, 5) * 0.05}>
-                    <LaunchCard launch={l} />
-                  </Reveal>
-                ))}
-              </div>
-            </>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {state.data.launches.map((l, i) => (
+                <Reveal key={l.token} delay={Math.min(i, 5) * 0.05}>
+                  <LaunchCard launch={l} />
+                </Reveal>
+              ))}
+            </div>
           )}
         </div>
 

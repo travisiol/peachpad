@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { parseEther } from "viem";
+import { formatEther, parseEther, toHex } from "viem";
 import { useAccount, useBalance, useReadContract, useWriteContract } from "wagmi";
 import { site, percent } from "@/lib/site";
 import { ROUTER_ADDRESS, routerAbi } from "@/lib/contracts";
@@ -21,8 +21,8 @@ type Fields = {
   description: string;
   x: string;
   telegram: string;
+  website: string;
   devBuy: string;
-  feeRecipient: string;
   creatorTaxBps: string;
 };
 
@@ -32,8 +32,8 @@ const EMPTY: Fields = {
   description: "",
   x: "",
   telegram: "",
+  website: "",
   devBuy: "0",
-  feeRecipient: "",
   creatorTaxBps: "0",
 };
 
@@ -46,55 +46,73 @@ function validate(f: Fields) {
   if (f.description.length > 256) errors.description = "256 characters max";
   else if (LINK_RE.test(f.description)) errors.description = "No links in the description";
   if (f.devBuy.trim() && !/^\d*\.?\d*$/.test(f.devBuy)) errors.devBuy = "Decimal ETH amount";
-  if (f.feeRecipient.trim() && !isAddress(f.feeRecipient.trim()))
-    errors.feeRecipient = "Must be a 0x address";
   const bps = Number.parseInt(f.creatorTaxBps || "0", 10);
-  if (!Number.isFinite(bps) || bps < 0 || bps > 500) errors.creatorTaxBps = "0 to 500 bps";
+  if (!Number.isFinite(bps) || bps < 0 || bps > 1000) errors.creatorTaxBps = "0 to 1000 bps";
   return errors;
+}
+
+function randomSalt(): `0x${string}` {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return toHex(bytes);
+}
+
+function normalizeUrl(value: string, host: string): string {
+  const v = value.trim();
+  if (!v) return "";
+  if (/^https?:\/\//i.test(v)) return v;
+  if (v.startsWith("@")) return `https://${host}/${v.slice(1)}`;
+  return `https://${v.replace(/^\/+/, "")}`;
 }
 
 export function LaunchForm() {
   const [f, setF] = useState<Fields>(EMPTY);
   const [advanced, setAdvanced] = useState(false);
   const [file, setFile] = useState<File | null>(null);
-  // One object URL per picked file; revoked when the file changes or the
-  // form unmounts.
-  const preview = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
   const [collectToken, setCollectToken] = useState("");
   const [status, setStatus] = useState<string | null>(null);
 
-  const { address, isConnected, chainId } = useAccount();
-  const { data: balance } = useBalance({ address, chainId: robinhoodChain.id });
-  const { data: feeOnChain } = useReadContract({
-    address: ROUTER_ADDRESS ?? undefined,
-    abi: routerAbi,
-    functionName: "launchFee",
-    chainId: robinhoodChain.id,
-    query: { enabled: ROUTER_ADDRESS !== null },
-  });
-  const { writeContractAsync, isPending } = useWriteContract();
-
+  // One object URL per picked file; revoked when the file changes or the
+  // form unmounts.
+  const preview = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
   useEffect(() => {
     if (!preview) return;
     return () => URL.revokeObjectURL(preview);
   }, [preview]);
 
+  const { address, isConnected, chainId } = useAccount();
+  const { data: balance } = useBalance({ address, chainId: robinhoodChain.id });
+  const routerLive = ROUTER_ADDRESS !== null;
+  const { data: feeWei } = useReadContract({
+    address: ROUTER_ADDRESS ?? undefined,
+    abi: routerAbi,
+    functionName: "totalLaunchFee",
+    chainId: robinhoodChain.id,
+    query: { enabled: routerLive, refetchInterval: 30_000 },
+  });
+  const { data: gateOpen } = useReadContract({
+    address: ROUTER_ADDRESS ?? undefined,
+    abi: routerAbi,
+    functionName: "canLaunchHere",
+    chainId: robinhoodChain.id,
+    query: { enabled: routerLive, refetchInterval: 30_000 },
+  });
+  const { writeContractAsync, isPending } = useWriteContract();
+
   const errors = useMemo(() => validate(f), [f]);
   const valid = Object.keys(errors).length === 0;
   const onChain = isConnected && chainId === robinhoodChain.id;
-  const routerLive = ROUTER_ADDRESS !== null;
+  const fee = typeof feeWei === "bigint" ? feeWei : parseEther(site.launchFeeEth);
+  const feeEth = trimEth(formatEther(fee));
 
-  const feeEth = feeOnChain !== undefined ? formatEthFromWei(feeOnChain) : site.launchFeeEth;
-
-  const blocker = !routerLive
-    ? `Router not deployed — set NEXT_PUBLIC_PEACHPAD_ROUTER`
-    : !isConnected
-      ? "Connect a wallet to launch"
-      : !onChain
-        ? "Switch to Robinhood Chain"
-        : !valid
-          ? "Fix the fields above"
-          : null;
+  const blocker = !isConnected
+    ? "Connect a wallet to launch"
+    : !onChain
+      ? "Switch to Robinhood Chain"
+      : !valid
+        ? "Fix the fields above"
+        : null;
+  const canSubmit = routerLive && gateOpen !== false && blocker === null && !isPending;
 
   const set = (k: keyof Fields) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setF((prev) => ({ ...prev, [k]: k === "ticker" ? e.target.value.toUpperCase() : e.target.value }));
@@ -102,13 +120,13 @@ export function LaunchForm() {
   const setMax = () => {
     if (!balance) return;
     // Leave the launch fee plus a little gas behind.
-    const spare = balance.value - parseEther(feeEth) - parseEther("0.0005");
-    setF((prev) => ({ ...prev, devBuy: spare > 0n ? formatEthFromWei(spare, 4) : "0" }));
+    const spare = balance.value - fee - parseEther("0.0005");
+    setF((prev) => ({ ...prev, devBuy: spare > 0n ? trimEth(formatEther(spare), 4) : "0" }));
   };
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (blocker || !ROUTER_ADDRESS) return;
+    if (!canSubmit || !ROUTER_ADDRESS) return;
     setStatus(null);
     try {
       let logo = "";
@@ -116,11 +134,11 @@ export function LaunchForm() {
         const body = new FormData();
         body.append("file", file);
         const up = await fetch("/api/upload/", { method: "POST", body });
-        const json = (await up.json()) as { ok?: boolean; uri?: string; error?: string };
-        if (!up.ok || !json.uri) throw new Error(json.error ?? `upload HTTP ${up.status}`);
+        const json = (await up.json().catch(() => ({}))) as { uri?: string };
+        if (!up.ok || !json.uri) throw new Error("Image upload failed. Remove the image or try again.");
         logo = json.uri;
       }
-      const devBuy = parseEther(f.devBuy.trim() || "0");
+      const developerBuy = parseEther(f.devBuy.trim() || "0");
       const hash = await writeContractAsync({
         address: ROUTER_ADDRESS,
         abi: routerAbi,
@@ -129,14 +147,18 @@ export function LaunchForm() {
           {
             name: f.name.trim(),
             symbol: f.ticker.trim(),
-            description: f.description.trim(),
             logo,
-            xUrl: f.x.trim(),
-            telegramUrl: f.telegram.trim(),
-            developerBuy: devBuy,
+            description: f.description.trim(),
+            x: normalizeUrl(f.x, "x.com"),
+            telegram: normalizeUrl(f.telegram, "t.me"),
+            website: normalizeUrl(f.website, ""),
+            creatorTaxBps: Number.parseInt(f.creatorTaxBps || "0", 10),
+            salt: randomSalt(),
+            developerBuy,
+            minTokensOut: 0n,
           },
         ],
-        value: parseEther(feeEth) + devBuy,
+        value: fee + developerBuy,
         chainId: robinhoodChain.id,
       });
       setStatus(`Submitted: ${hash}`);
@@ -152,7 +174,7 @@ export function LaunchForm() {
       const hash = await writeContractAsync({
         address: ROUTER_ADDRESS,
         abi: routerAbi,
-        functionName: "collect",
+        functionName: "collectFees",
         args: [collectToken.trim() as `0x${string}`],
         chainId: robinhoodChain.id,
       });
@@ -201,9 +223,11 @@ export function LaunchForm() {
 
           <div className="mb-5 flex flex-wrap items-center gap-3">
             <ConnectButton />
-            <span className={`text-xs ${routerLive ? "text-ink/50" : "text-deep-peach"}`}>
-              {routerLive ? `${site.firstPad} gate open` : "Router not deployed"}
-            </span>
+            {routerLive && gateOpen !== undefined ? (
+              <span className={`text-xs ${gateOpen ? "text-ink/50" : "text-deep-peach"}`}>
+                {site.firstPad} gate {gateOpen ? "open" : "closed"}
+              </span>
+            ) : null}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -290,17 +314,17 @@ export function LaunchForm() {
           </button>
           {advanced ? (
             <div className="grid gap-4 border-4 border-t-0 border-ink bg-white px-4 py-4 sm:grid-cols-2">
-              <Field label="Fee recipient" error={errors.feeRecipient}>
-                <input className="pixel-input" placeholder="Defaults to the launching wallet" value={f.feeRecipient} onChange={set("feeRecipient")} />
+              <Field label="Website">
+                <input className="pixel-input" placeholder="yourtoken.fun" value={f.website} onChange={set("website")} />
               </Field>
               <Field label="Creator tax (bps)" error={errors.creatorTaxBps}>
                 <input className="pixel-input" inputMode="numeric" placeholder="0" value={f.creatorTaxBps} onChange={set("creatorTaxBps")} />
-                <span className="mt-1 block text-[10px] text-ink/40">0–500 · on top of the {site.tradeFeePct} trade fee</span>
+                <span className="mt-1 block text-[10px] text-ink/40">0–1000 · on top of the {site.tradeFeePct} trade fee</span>
               </Field>
             </div>
           ) : null}
 
-          <button type="submit" className="btn-primary mt-6 w-full !py-4" disabled={blocker !== null || isPending}>
+          <button type="submit" className="btn-primary mt-6 w-full !py-4" disabled={!canSubmit}>
             {isPending ? "Confirm in wallet…" : `Launch · ${feeEth} ETH`}
           </button>
           {blocker ? <p className="ui-text mt-2 text-center text-[11px] text-ink/50">{blocker}</p> : null}
@@ -323,9 +347,6 @@ export function LaunchForm() {
                 Collect
               </button>
             </div>
-            {!routerLive ? (
-              <p className="ui-text mt-2 text-[11px] text-ink/45">Needs the router too.</p>
-            ) : null}
           </div>
         </form>
 
@@ -400,8 +421,9 @@ function Row({ k, children }: { k: string; children: React.ReactNode }) {
   );
 }
 
-function formatEthFromWei(wei: bigint, digits = 4): string {
-  const whole = wei / 10n ** 18n;
-  const frac = (wei % 10n ** 18n).toString().padStart(18, "0").slice(0, digits).replace(/0+$/, "");
-  return frac ? `${whole}.${frac}` : whole.toString();
+/** "0.000500" → "0.0005"; keeps at most `max` decimals. */
+function trimEth(value: string, max = 6): string {
+  const [whole, frac = ""] = value.split(".");
+  const cut = frac.slice(0, max).replace(/0+$/, "");
+  return cut ? `${whole}.${cut}` : whole;
 }
